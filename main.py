@@ -3,81 +3,65 @@ import datetime
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters.command import Command
+import report
 from thefuzz import fuzz
 
-char_complete_opio = "✅"
-opio_list = {
-    "Став 189": None,
-    "Став 141": None,
-    "Лента": None,
-    "Оз": None,
-    "Новомих": None,
-    "Ахтарск": None,
-    "Тимашевск":None,
-    "Гк4": None,
-    "Гк7": None,
-    "Туапсе_Маркса": None,
-    "Туапсе_Жукова": None,
-    "Гулькевичи": None,
-    "Кропоткин 226": None,
-    "Кропоткин 72": None
-}
+logging.basicConfig(level=logging.INFO)
 
-def make_price_report(opio_list: dict):
-    logging.info("Send message-report for price control")
-    date_now = datetime.datetime.now()
-    price_report = f"{date_now.day}.{date_now.month:0>2}\n"
-    price_report += "Стоимостная до 11:00❗️\n"
-    price_report += "\n".join(opio_list)
-    return price_report
+bot = Bot(token="8095263812:AAEhlt_PCB-kjoWuLXf_Wd-zZss1_gbBWjw")
+dp = Dispatcher()
 
-def check_is_price_report_message(message_replied_text: str):
-    return True if message_replied_text.split("\n")[1].strip().split(" ")[0] == "Стоимостная" else False
-
-async def set_report_complete(opio_name: str, message: types.Message):
+async def set_report_complete(opio_name: str, message: types.Message, char_status):
     for line_message in message.text.split("\n"):
-        if fuzz.ratio(line_message.lower(), opio_name.lower()) > 90:
-            report_message_text = message.text.replace(line_message, f"{line_message} {char_complete_opio}")
+        line_message_opio = line_message.split("-")[0].strip()
+        if fuzz.ratio(line_message_opio.lower(), opio_name.lower()) > 90:
+            report_message_text = message.text.replace(line_message, f"{line_message_opio} - {char_status}")
             await bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id, text=report_message_text)
             logging.info(f"Edit message-report for price control. Report from {opio_name} complete.")
+
 
 async def process_price_report(message: types.Message):
     has_price_photo = True if message.photo is not None else False
     opio_name = message.caption
+    char_complete_opio = "✅"
 
     if has_price_photo:
-        await set_report_complete(opio_name, message.reply_to_message)
+        await set_report_complete(opio_name, message.reply_to_message, char_complete_opio)
     logging.info(f"Get message-report for price control from {opio_name}. In message has photo - {has_price_photo}.")
 
 
-# Включаем логирование, чтобы не пропустить важные сообщения
-logging.basicConfig(level=logging.INFO)
-# Объект бота
-bot = Bot(token="8095263812:AAEhlt_PCB-kjoWuLXf_Wd-zZss1_gbBWjw")
-# Диспетчер
-dp = Dispatcher()
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    price_report = make_price_report(opio_list)
+    report_name = message.text.replace("/start", "").strip()
+    price_report = report.create(report_name)
     await message.answer(price_report)
+    logging.info(f"Create report. With name - {report_name}")
 
 @dp.message(Command("stop"))
-async def cmd_start(message: types.Message):
-    pass
+async def cmd_stop(message: types.Message):
+    char_stop = "⛔"
+    opio_name = message.text.replace("/stop", "").strip()
+    await set_report_complete(opio_name, message.reply_to_message, char_stop)
+    logging.info(f"Set stop status for opio - {opio_name}.")
 
 @dp.message(Command("cancel"))
-async def cmd_start(message: types.Message):
-    pass
+async def cmd_cancel(message: types.Message):
+    char_cancel = ""
+    opio_name = message.text.replace("/cancel", "").strip()
+    await set_report_complete(opio_name, message.reply_to_message, char_cancel)
+    logging.info(f"Cancel status for opio - {opio_name}.")
+
+@dp.message(Command("control"))
+async def cmd_control(message: types.Message):
+    logging.info("Control message-report for TM.")
 
 # Обработка сообщений пользователей
 @dp.message()
 async def reply_message(message: types.Message):
-    is_message_price_report = check_is_price_report_message(message.reply_to_message.text)
-    if is_message_price_report:
+    if report.is_report_reply(message):
         await process_price_report(message)
-        logging.info("Process with price-report")
-
+    logging.info("Process with report")
 
 # Запуск процесса поллинга новых апдейтов
 async def main():
