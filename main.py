@@ -1,7 +1,7 @@
 import asyncio
-import datetime
 import logging
 from aiogram import Bot, Dispatcher, types
+from aiogram.enums import ParseMode
 from aiogram.filters.command import Command
 import report
 from thefuzz import fuzz
@@ -9,6 +9,7 @@ from thefuzz import fuzz
 logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token="8095263812:AAEhlt_PCB-kjoWuLXf_Wd-zZss1_gbBWjw")
+#new token = 8152584341:AAHilCPJZ4g10efL0buH-0eXUmZraVRSA_Y
 dp = Dispatcher()
 
 async def set_report_complete(opio_name: str, message: types.Message, char_status):
@@ -23,13 +24,10 @@ async def set_report_complete(opio_name: str, message: types.Message, char_statu
 async def process_price_report(message: types.Message):
     has_price_photo = True if message.photo is not None else False
     opio_name = message.caption
-    char_complete_opio = "✅"
 
     if has_price_photo:
-        await set_report_complete(opio_name, message.reply_to_message, char_complete_opio)
+        await set_report_complete(opio_name, message.reply_to_message, report.char_complete_opio)
     logging.info(f"Get message-report for price control from {opio_name}. In message has photo - {has_price_photo}.")
-
-
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
@@ -40,26 +38,36 @@ async def cmd_start(message: types.Message):
 
 @dp.message(Command("stop"))
 async def cmd_stop(message: types.Message):
-    char_stop = "⛔"
     opio_name = message.text.replace("/stop", "").strip()
-    await set_report_complete(opio_name, message.reply_to_message, char_stop)
+    await set_report_complete(opio_name, message.reply_to_message, report.char_stop_opio)
     logging.info(f"Set stop status for opio - {opio_name}.")
 
 @dp.message(Command("cancel"))
 async def cmd_cancel(message: types.Message):
-    char_cancel = ""
     opio_name = message.text.replace("/cancel", "").strip()
-    await set_report_complete(opio_name, message.reply_to_message, char_cancel)
+    await set_report_complete(opio_name, message.reply_to_message, report.char_default_status)
     logging.info(f"Cancel status for opio - {opio_name}.")
+
+@dp.message(Command("help"))
+async def cmd_help(message: types.Message):
+    await message.answer(report.info())
+    logging.info("Send instructions for uses bot and avalible command.")
 
 @dp.message(Command("control"))
 async def cmd_control(message: types.Message):
-    logging.info("Control message-report for TM.")
+    report_status = report.control(message.reply_to_message)
+    if report_status is True:
+        await message.answer(message.reply_to_message.text)
+        await message.answer("Отчёт сдан.")
+        # user_name = message.from_user.first_name
+        # mention = "[" + user_name + "](tg://user?id=" + str(report.tm_user_id) + ")"
+        # await message.answer(mention, parse_mode="Markdown")
+    logging.info(f"Control message-report for TM. Report complete - {report_status}.")
 
 # Обработка сообщений пользователей
 @dp.message()
 async def reply_message(message: types.Message):
-    if report.is_report_reply(message):
+    if report.is_report_reply(message.reply_to_message):
         await process_price_report(message)
     logging.info("Process with report")
 
