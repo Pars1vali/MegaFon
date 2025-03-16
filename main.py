@@ -6,10 +6,9 @@ from aiogram.filters.command import Command
 import report
 from thefuzz import fuzz
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 
 bot = Bot(token="8095263812:AAEhlt_PCB-kjoWuLXf_Wd-zZss1_gbBWjw")
-#new token = 8152584341:AAHilCPJZ4g10efL0buH-0eXUmZraVRSA_Y
 dp = Dispatcher()
 
 async def set_report_complete(opio_name: str, message: types.Message, char_status):
@@ -48,10 +47,19 @@ async def cmd_cancel(message: types.Message):
     await set_report_complete(opio_name, message.reply_to_message, report.char_default_status)
     logging.info(f"Cancel status for opio - {opio_name}.")
 
+
+@dp.message(Command("time"))
+async def cmd_time(message: types.Message):
+    opio_name = message.text.replace("/time", "").strip()
+    await set_report_complete(opio_name, message.reply_to_message, report.char_time_status)
+    logging.info(f"Time status for opio - {opio_name}.")
+
+
 @dp.message(Command("help"))
 async def cmd_help(message: types.Message):
     await message.answer(report.info())
     logging.info("Send instructions for uses bot and avalible command.")
+
 
 @dp.message(Command("control"))
 async def cmd_control(message: types.Message):
