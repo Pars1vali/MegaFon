@@ -1,5 +1,7 @@
 import datetime
-import logging
+import logging, re
+
+from Tools.scripts.fixdiv import report
 from aiogram import types
 
 char_default_status = "➖"
@@ -14,6 +16,7 @@ tm_user_id  = "7405295017"
 opio_list = list([
     "Став 189",
     "Став 141",
+    "Став/Веш",
     "Лента",
     "Оз",
     "Новомих",
@@ -46,23 +49,19 @@ def info():
 def create(report_name: str):
     logging.info(f"Create report with name - {report_name}")
     date_now = datetime.datetime.now()
-    price_report = f"{date_now.day:0>2}.{date_now.month:0>2} ️\n"
-    price_report += F"{char_attention} {report_name} {char_attention}\n"
-    price_report += '\n'.join([f'{opio} - {char_default_status}' for opio in opio_list])
+    report_message = f"{date_now.day:0>2}.{date_now.month:0>2} ️\n"
+    report_message += f"{char_attention} {report_name} {char_attention}\n"
+    report_message += '\n'.join([f'{opio} - {char_default_status}' for opio in opio_list])
 
-    return price_report
+    return report_message
 
 def control(message: types.Message):
-    report_complete = True
-    opio_status_list = message.text.split(char_attention)[-1].split("\n")
-    for line in opio_status_list:
-        status_report = line.split("-")[-1].strip()
-        if status_report == char_default_status:
-            report_complete = False
+    if is_reply(message):
+        report_complete = not bool(re.search(f"[{char_default_status}{char_time_status}]", message.text))
+        logging.info(f"Report control. Report complete - {report_complete}")
+        return report_complete
 
-    return report_complete
-
-def is_report_reply(message: types.Message):
+def is_reply(message: types.Message):
     if message is None:
         logging.info("Reply message is null. Need send answer for reply message.")
         return False
