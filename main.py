@@ -1,14 +1,11 @@
-import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
-from aiogram.enums import ParseMode
 from aiogram.filters.command import Command
 import report
-from thefuzz import fuzz
 from thefuzz import process
 import json, os, re
 
-from report import is_reply
+from report import tm_user_id
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -64,7 +61,9 @@ async def cmd_report(message: types.Message):
     if has_photo:
         opio_name = message.caption.replace("/report", "").strip()
         await set_report_complete(opio_name, message.reply_to_message, report.char_complete_opio)
-        logging.info(f"Get message-report for price control from {opio_name}. In message has photo - {has_photo}.")
+        logging.info(f"Get message-report for price control from {opio_name}. In message has photo.")
+    else:
+        logging.info("Get message-report for price control from {opio_name}. In message has photo.")
 
 
 @dp.message(Command("help"))
@@ -76,13 +75,24 @@ async def cmd_help(message: types.Message):
 @dp.message(Command("control"))
 async def cmd_control(message: types.Message):
     if report.control(message.reply_to_message):
-        await message.answer(f'{message.reply_to_message.text} \n Отчёт сдан. [{message.from_user.first_name}](tg://user?id={message.from_user.id})', \
+        await message.answer(f'{message.reply_to_message.text} \n Отчёт сдан. [{message.from_user.first_name}](tg://user?id={message.from_user.me})', \
                              parse_mode="Markdown")
+
+        await message.answer(f'<a href="tg://user?id={tm_user_id}">inline mention of a user</a>', parse_mode="HTML")
         logging.info(f"Control message-report. Report complete.")
     else:
         await message.answer('Отчёт не сдан.')
         logging.info(f"Control message-report. The report has not been submitted")
 
+@dp.message(Command("delete"))
+async def cmd_delete(message: types.Message):
+    if report.is_reply(message.reply_to_message):
+        report_message = message.reply_to_message
+        is_delete = await bot.delete_message(report_message.chat.id, report_message.message_id)
+        logging.info(f"Report delete - {is_delete}")
+
+
+js
 
 
 # Обработка сообщений пользователей
